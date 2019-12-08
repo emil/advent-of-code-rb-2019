@@ -1,44 +1,49 @@
 #frozen_string_literal: true
 # Intcode https://adventofcode.com/2019/day/2
 class Intcode
-
-  def initialize(int_code)
-    @init_int_code = int_code
+  attr_reader :last_output_signal
+  def initialize(int_code, phase_setting = nil, &blk)
+    @int_code = int_code.dup
     @halted = false
+    @feedback_loop = blk
+    # phase setting is the first input code if present
+    @input_codes = []
+    @input_codes = [phase_setting] unless phase_setting.nil?
+    @output = []
+    @index = 0
   end
 
   OPCODE_METHODS = {
-    1 => :opcode_1_2,
-    2 => :opcode_1_2,
-    3 => :opcode_3,
-    4 => :opcode_4,
-    5 => :opcode_5,
-    6 => :opcode_6,
-    7 => :opcode_7_8,
-    8 => :opcode_7_8,
-    99 => :opcode_99
+    1 => :add_or_multiply,
+    2 => :add_or_multiply,
+    3 => :input,
+    4 => :output,
+    5 => :jump_if_true,
+    6 => :jump_if_false,
+    7 => :less_than_or_equal,
+    8 => :less_than_or_equal,
+    99 => :halt
   }.freeze
 
-  def run(input_code = 1)
-    @int_code = @init_int_code.dup
-    @output = []
-    @index = 0
-    @input_code = input_code
+  def run(input_code)
+    @input_codes << input_code
     loop do
       opcode, *params = instruction_to_params
       send(OPCODE_METHODS.fetch(opcode), opcode, *params)
-      return @output.last if @halted
+      if @halted
+        return @last_output_signal
+      end
     end
     raise 'Intcode error'
   end
 
   private
 
-  def opcode_99(*)
+  def halt(*)
     @halted = true
   end
 
-  def opcode_1_2(opcode, index1, index2, index3)
+  def add_or_multiply(opcode, index1, index2, index3)
     ops = { 1 => :+, 2 => :* }
     left  = @int_code[index1]
     right = @int_code[index2]
@@ -46,17 +51,24 @@ class Intcode
     @index += 4
   end
 
-  def opcode_3(_opcode, at_index)
-    @int_code[at_index] = @input_code
+  def input(_opcode, at_index)
+    raise 'Input codes exhausted' if @input_codes.empty?
+
+    @int_code[at_index] = @input_codes.shift
     @index += 2
   end
 
-  def opcode_4(_opcode, at_index)
-    @output.push(@int_code[at_index])
+  def output(_opcode, at_index)
     @index += 2
+    @last_output_signal = @int_code[at_index]
+    if @feedback_loop.nil?
+      @output << @int_code[at_index]
+    else
+      @feedback_loop.call(@int_code[at_index])
+    end
   end
 
-  def opcode_5(_opcode, at_index, index_from)
+  def jump_if_true(_opcode, at_index, index_from)
     if !@int_code[at_index].zero?
       @index = @int_code[index_from]
     else
@@ -64,7 +76,7 @@ class Intcode
     end
   end
 
-  def opcode_6(_opcode, at_index, index_from)
+  def jump_if_false(_opcode, at_index, index_from)
     if @int_code[at_index].zero?
       @index = @int_code[index_from]
     else
@@ -72,7 +84,7 @@ class Intcode
     end
   end
 
-  def opcode_7_8(opcode, left, right, index_to)
+  def less_than_or_equal(opcode, left, right, index_to)
     ops = { 7 => :<, 8 => :== }
     @int_code[index_to] = @int_code[left].send(ops[opcode], @int_code[right]) ? 1 : 0
     @index += 4
