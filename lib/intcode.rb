@@ -1,4 +1,5 @@
-#frozen_string_literal: true
+# frozen_string_literal: true
+
 # Intcode https://adventofcode.com/2019/day/2
 class Intcode
   attr_reader :last_output_signal
@@ -30,9 +31,7 @@ class Intcode
     loop do
       opcode, *params = instruction_to_params
       send(OPCODE_METHODS.fetch(opcode), opcode, *params)
-      if @halted
-        return @last_output_signal
-      end
+      return @last_output_signal if @halted
     end
     raise 'Intcode error'
   end
