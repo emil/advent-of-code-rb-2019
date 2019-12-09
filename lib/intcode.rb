@@ -9,9 +9,15 @@ class Intcode
     @feedback_loop = blk
     # phase setting is the first input code if present
     @input_codes = []
+
+    def @int_code.[](index)
+      self.at(index) || 0
+    end
+
     @input_codes = [phase_setting] unless phase_setting.nil?
     @output = []
     @index = 0
+    @relative_base_offset = 0
   end
 
   OPCODE_METHODS = {
@@ -23,11 +29,12 @@ class Intcode
     6 => :jump_if_false,
     7 => :less_than_or_equal,
     8 => :less_than_or_equal,
+    9 => :relative_base_offset,
     99 => :halt
   }.freeze
 
-  def run(input_code)
-    @input_codes << input_code
+  def run(input_code = nil)
+    @input_codes << input_code unless input_code.nil?
     loop do
       opcode, *params = instruction_to_params
       send(OPCODE_METHODS.fetch(opcode), opcode, *params)
@@ -42,11 +49,11 @@ class Intcode
     @halted = true
   end
 
-  def add_or_multiply(opcode, index1, index2, index3)
+  def add_or_multiply(opcode, index1, index2, index_to)
     ops = { 1 => :+, 2 => :* }
     left  = @int_code[index1]
     right = @int_code[index2]
-    @int_code[index3] = left.send(ops[opcode], right)
+    @int_code[index_to] = left.send(ops[opcode], right)
     @index += 4
   end
 
@@ -89,6 +96,11 @@ class Intcode
     @index += 4
   end
 
+  def relative_base_offset(_opcode, new_relative_base_offset)
+    @relative_base_offset += @int_code[new_relative_base_offset]
+    @index += 2
+  end
+
   OPCODE_PARAMS = {
     1 => 3,
     2 => 3,
@@ -98,8 +110,18 @@ class Intcode
     6 => 2,
     7 => 3,
     8 => 3,
+    9 => 1,
     99 => 0
   }.freeze
+
+  # https://adventofcode.com/2019/day/5
+  # "Parameters that an instruction writes to will never be in immediate mode."
+  def param_mode(opcode, param_index, mode)
+    return 0 if opcode == 3 && mode == 1
+    return 0 if param_index == 3 && mode == 1
+
+    mode
+  end
 
   # returns [opcode, param1_index, param2_index ...]
   def instruction_to_params
@@ -109,6 +131,7 @@ class Intcode
     modes = []
     while digit_count.positive?
       param_modes, mode = param_modes.divmod(10)
+      mode = param_mode(opcode, modes.length + 1, mode)
       modes << mode
       digit_count -= 1
     end
@@ -119,7 +142,16 @@ class Intcode
     param_modes.each_with_object([]) do |mode, acc|
       param_index = @index + acc.length + 1
       # direct value or index
-      acc << (mode.zero? ? @int_code[param_index] : param_index)
+      acc << case mode
+             when 0
+               @int_code[param_index]
+             when 1
+               param_index
+             when 2
+               @int_code[param_index] + @relative_base_offset
+             else
+               raise "Unknown param mode  #{mode}"
+             end
     end
   end
 
