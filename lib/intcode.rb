@@ -3,16 +3,29 @@
 # Intcode https://adventofcode.com/2019/day/2
 class Intcode
   attr_reader :last_output_signal
+
+  SparseIntCode = Struct.new(:int_code) do
+
+    def initialize(int_code)
+      @_int_code_h = Hash[int_code.map.with_index { |code, i| [i, code] }]
+      @_int_code_h.default = 0
+    end
+
+    def [](index)
+      @_int_code_h[index]
+    end
+
+    def []=(index, val)
+      @_int_code_h[index] = val
+    end
+  end
+
   def initialize(int_code, phase_setting = nil, &blk)
-    @int_code = int_code.dup
     @halted = false
     @feedback_loop = blk
     # phase setting is the first input code if present
     @input_codes = []
-
-    def @int_code.[](index)
-      self.at(index) || 0
-    end
+    @int_code = SparseIntCode.new(int_code)
 
     @input_codes = [phase_setting] unless phase_setting.nil?
     @output = []
