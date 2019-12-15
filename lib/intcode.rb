@@ -3,6 +3,7 @@
 # Intcode https://adventofcode.com/2019/day/2
 class Intcode
   attr_reader :last_output_signal
+  attr_accessor :input
 
   SparseIntCode = Struct.new(:int_code) do
 
@@ -22,12 +23,12 @@ class Intcode
 
   def initialize(int_code, phase_setting = nil, &blk)
     @halted = false
-    @feedback_loop = blk
+    @output_blk = blk
     # phase setting is the first input code if present
-    @input_codes = []
+    @input = []
     @int_code = SparseIntCode.new(int_code)
 
-    @input_codes = [phase_setting] unless phase_setting.nil?
+    @input = [phase_setting] unless phase_setting.nil?
     @output = []
     @index = 0
     @relative_base_offset = 0
@@ -36,7 +37,7 @@ class Intcode
   OPCODE_METHODS = {
     1 => :add_or_multiply,
     2 => :add_or_multiply,
-    3 => :input,
+    3 => :read_input,
     4 => :output,
     5 => :jump_if_true,
     6 => :jump_if_false,
@@ -47,7 +48,7 @@ class Intcode
   }.freeze
 
   def run(input_code = nil)
-    @input_codes << input_code unless input_code.nil?
+    @input << input_code unless input_code.nil?
     loop do
       opcode, *params = instruction_to_params
       send(OPCODE_METHODS.fetch(opcode), opcode, *params)
@@ -70,20 +71,20 @@ class Intcode
     @index += 4
   end
 
-  def input(_opcode, at_index)
-    raise 'Input codes exhausted' if @input_codes.empty?
+  def read_input(_opcode, at_index)
+    raise 'Input codes exhausted' if @input.empty?
 
-    @int_code[at_index] = @input_codes.shift
+    @int_code[at_index] = @input.shift
     @index += 2
   end
 
   def output(_opcode, at_index)
     @index += 2
     @last_output_signal = @int_code[at_index]
-    if @feedback_loop.nil?
+    if @output_blk.nil?
       @output << @int_code[at_index]
     else
-      @feedback_loop.call(@int_code[at_index])
+      @output_blk.call(@int_code[at_index])
     end
   end
 
@@ -127,15 +128,6 @@ class Intcode
     99 => 0
   }.freeze
 
-  # https://adventofcode.com/2019/day/5
-  # "Parameters that an instruction writes to will never be in immediate mode."
-  def param_mode(opcode, param_index, mode)
-    return 0 if opcode == 3 && mode == 1
-    return 0 if param_index == 3 && mode == 1
-
-    mode
-  end
-
   # returns [opcode, param1_index, param2_index ...]
   def instruction_to_params
     param_modes, opcode = current_instruction.divmod(100)
@@ -151,10 +143,19 @@ class Intcode
     [opcode].concat(mode_to_index(modes))
   end
 
+  # https://adventofcode.com/2019/day/5
+  # "Parameters that an instruction writes to will never be in immediate mode."
+  def param_mode(opcode, param_index, mode)
+    return 0 if opcode == 3 && mode == 1
+    return 0 if param_index == 3 && mode == 1
+
+    mode
+  end
+
   def mode_to_index(param_modes)
     param_modes.each_with_object([]) do |mode, acc|
       param_index = @index + acc.length + 1
-      # direct value or index
+      # direct value, index or index + relative
       acc << case mode
              when 0
                @int_code[param_index]
