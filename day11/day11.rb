@@ -44,7 +44,8 @@ class Day11 < MiniTest::Test
     y, x = 0, 0
     degrees = 90
     painted_panels = {}
-    int_code = Intcode.new(int_code) do |colour_or_direction|
+
+    input_proc = lambda { |colour_or_direction|
       if instruction == :colour
         current_panel = [y, x]
         painted_panels[current_panel] ||= [0, colour_or_direction]
@@ -79,7 +80,8 @@ class Day11 < MiniTest::Test
         int_code.input << panel_colour
         instruction = :colour
       end
-    end
+                           }
+    int_code = Intcode.new(int_code, nil, output: input_proc)
     int_code.run(start_colour)
 
     painted_panels

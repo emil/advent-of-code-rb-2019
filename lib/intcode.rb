@@ -21,9 +21,10 @@ class Intcode
     end
   end
 
-  def initialize(int_code, phase_setting = nil, &blk)
+  def initialize(int_code, phase_setting = nil, options = {})
     @halted = false
-    @output_blk = blk
+    @output_proc = options[:output]
+    @input_proc = options[:input]
     # phase setting is the first input code if present
     @input = []
     @int_code = SparseIntCode.new(int_code)
@@ -72,19 +73,25 @@ class Intcode
   end
 
   def read_input(_opcode, at_index)
-    raise 'Input codes exhausted' if @input.empty?
+    val = if !@input.empty?
+            @input.shift
+          elsif !@input_proc.nil?
+            @input_proc.call
+          else
+            raise 'Input codes exhausted'
+          end
 
-    @int_code[at_index] = @input.shift
+    @int_code[at_index] = val
     @index += 2
   end
 
   def output(_opcode, at_index)
     @index += 2
     @last_output_signal = @int_code[at_index]
-    if @output_blk.nil?
+    if @output_proc.nil?
       @output << @int_code[at_index]
     else
-      @output_blk.call(@int_code[at_index])
+      @output_proc.call(@int_code[at_index])
     end
   end
 

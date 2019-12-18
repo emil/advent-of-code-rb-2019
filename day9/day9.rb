@@ -21,7 +21,7 @@ class Day9 < MiniTest::Test
   def test_quine
     int_code = [109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99]
     output = []
-    ic_run = Intcode.new(int_code) {|n| output << n }
+    ic_run = Intcode.new(int_code, nil, output: ->(n) {output << n})
     ic_run.run
     assert_equal int_code.sort, output.sort
   end

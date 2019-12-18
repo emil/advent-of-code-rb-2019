@@ -44,21 +44,15 @@ class Day7 < MiniTest::Test
   def max_thruster_signal_feedback_loop(int_code)
     PHASES_FEEDBACK_LOOP_MODE.map do |phase_a, phase_b, phase_c, phase_d, phase_e|
       amp_a = nil, amp_b = nil, amp_c = nil, amp_d = nil, amp_e = nil
-      amp_a = Intcode.new(int_code, phase_a) do |input_code_b|
-        amp_b.run(input_code_b)
-      end
-      amp_b = Intcode.new(int_code, phase_b) do |input_code_c|
-        amp_c.run(input_code_c)
-      end
-      amp_c = Intcode.new(int_code, phase_c) do |input_code_d|
-        amp_d.run(input_code_d)
-      end
-      amp_d = Intcode.new(int_code, phase_d) do |input_code_e|
-        amp_e.run(input_code_e)
-      end
-      amp_e = Intcode.new(int_code, phase_e) do |input_code_a|
-        amp_a.run(input_code_a)
-      end
+      amp_a = Intcode.new(int_code, phase_a, :output => ->(input_code_b) { amp_b.run(input_code_b) })
+
+      amp_b = Intcode.new(int_code, phase_b, :output => ->(input_code_c) { amp_c.run(input_code_c) })
+
+      amp_c = Intcode.new(int_code, phase_c, :output => ->(input_code_d) { amp_d.run(input_code_d) })
+
+      amp_d = Intcode.new(int_code, phase_d, :output => ->(input_code_e) { amp_e.run(input_code_e) })
+
+      amp_e = Intcode.new(int_code, phase_e, :output => ->(input_code_a) { amp_a.run(input_code_a) })
       amp_a.run(0)
       amp_e.last_output_signal
     end.max
