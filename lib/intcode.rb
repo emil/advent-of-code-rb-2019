@@ -6,7 +6,7 @@ class Intcode
   attr_accessor :input
 
   SparseIntCode = Struct.new(:int_code) do
-
+    attr_accessor :_int_code_h
     def initialize(int_code)
       @_int_code_h = Hash[int_code.map.with_index { |code, i| [i, code] }]
       @_int_code_h.default = 0
@@ -27,7 +27,11 @@ class Intcode
     @input_proc = options[:input]
     # phase setting is the first input code if present
     @input = []
-    @int_code = SparseIntCode.new(int_code)
+    if int_code.is_a?(SparseIntCode)
+      @int_code = int_code
+    else
+      @int_code = SparseIntCode.new(int_code)
+    end
 
     @input = [phase_setting] unless phase_setting.nil?
     @output = []
@@ -45,7 +49,7 @@ class Intcode
     7 => :less_than_or_equal,
     8 => :less_than_or_equal,
     9 => :relative_base_offset,
-    99 => :halt
+    99 => :halt!
   }.freeze
 
   def run(input_code = nil)
@@ -58,11 +62,20 @@ class Intcode
     raise 'Intcode error'
   end
 
-  private
-
-  def halt(*)
+  # public, can be invoked explicitly (Day 15)
+  def halt!(*)
     @halted = true
   end
+
+  def state
+    Marshal.load(Marshal.dump(@int_code))
+  end
+
+  def state=(new_int_code)
+    @int_code = new_int_code
+  end
+
+  private
 
   def add_or_multiply(opcode, index1, index2, index_to)
     ops = { 1 => :+, 2 => :* }

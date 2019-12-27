@@ -80,7 +80,7 @@ class Day11 < MiniTest::Test
         int_code.input << panel_colour
         instruction = :colour
       end
-                           }
+    }
     int_code = Intcode.new(int_code, nil, output: input_proc)
     int_code.run(start_colour)
 
