@@ -51,6 +51,7 @@ class Day15 < MiniTest::Test
       when MOVED_OK
         to_y, to_x = y_x_from(segment)
         next if visited.include?([to_y, to_x])
+
         # from_y, from_x = segment.pos
         # puts "Moved OK #{direction_s} from: #{[from_y, from_x]}, to: #{[to_y, to_x]}"
         #
@@ -59,9 +60,7 @@ class Day15 < MiniTest::Test
         visited.add([to_y, to_x])
         all_directions.each do |dir|
           n_segment = PathSegment.new(path, dir, int_code.state)
-          unless visited.include?(y_x_from(n_segment))
-            queue.push(n_segment)
-          end
+          queue.push(n_segment) unless visited.include?(y_x_from(n_segment))
         end
       when MOVED_ON_TARGET
         if puzzle == :a
