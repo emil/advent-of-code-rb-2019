@@ -111,10 +111,6 @@ class Day10 < MiniTest::Test
 
   private
 
-  def destroy_order(base, map)
-
-  end
-
   def visible_from(from_point, points)
     visible = [].to_set
     points.each do |point|
